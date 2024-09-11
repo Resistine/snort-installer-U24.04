@@ -50,10 +50,15 @@ cd snort3-3.3.4.0/
 cd build
 make -j 4
 sudo make install
-#cd ~/snort_src
-#mkdir snort_plugins
-#git config --global http.proxy http://10.49.1.100:3128
-#git clone https://github.com/kuceros/snort_mitre 
+cd ~/snort_src
+mkdir snort_plugins
+cd snort_plugins
+git config --global http.proxy http://10.49.1.100:3128
+git clone https://github.com/kuceros/snort_mitre 
+cd snort_mitre
+./configure_cmake.sh
+cd build
+sudo make install
 snort -v 
 else
 echo "you are not on ubuntu 24.04"
