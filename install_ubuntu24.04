@@ -9,7 +9,7 @@ if [ $PROXY ] ;then
   git config --global http.proxy http://$PROXY
 echo "setting proxy to $PROXY"
 else
-echo "you didn't specify proxy srever, connecting directly"
+echo "you didn't specify proxy srever, connecting directly, you can set env PROXY=server:port to set a proxy"
 fi
 cd ~/snort_src/
 wget wget https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.gz
