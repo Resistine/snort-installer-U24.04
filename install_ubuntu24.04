@@ -3,8 +3,14 @@ if [ $rel == "24.04" ] ;then
 mkdir ~/snort_src
 cd ~/snort_src
 apt install -y build-essential autotools-dev libdumbnet-dev libluajit-5.1-dev libpcap-dev zlib1g-dev pkg-config libhwloc-dev cmake liblzma-dev openssl libssl-dev cpputest libsqlite3-dev libtool uuid-dev git autoconf bison flex libcmocka-dev libnetfilter-queue-dev libunwind-dev libmnl-dev ethtool libjemalloc-dev libhyperscan-dev asciidoc
-export https_proxy=https://10.49.1.100:3128
-export http_proxy=http://10.49.1.100:3128
+if [ $PROXY ] ;then
+  export https_proxy=https://$PROXY
+  export http_proxy=http://$PROXY
+  git config --global http.proxy http://$PROXY
+echo "setting proxy to $PROXY"
+else
+echo "you didn't specify proxy srever, connecting directly"
+fi
 cd ~/snort_src/
 wget wget https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.gz
 tar -xzvf pcre-8.45.tar.gz
@@ -54,7 +60,6 @@ sudo make install
 cd ~/snort_src
 mkdir snort_plugins
 cd snort_plugins
-git config --global http.proxy http://10.49.1.100:3128
 git clone https://github.com/kuceros/snort_mitre 
 cd snort_mitre
 ./configure_cmake.sh
