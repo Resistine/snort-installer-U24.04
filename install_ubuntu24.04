@@ -1,78 +1,113 @@
-rel=$(lsb_release -a |grep Release |sed 's/Release:\s//')
-if [ $rel == "24.04" ] ;then 
-mkdir ~/snort_src
-cd ~/snort_src
-apt install -y build-essential autotools-dev libdumbnet-dev libluajit-5.1-dev libpcap-dev zlib1g-dev pkg-config libhwloc-dev cmake liblzma-dev openssl libssl-dev cpputest libsqlite3-dev libtool uuid-dev git autoconf bison flex libcmocka-dev libnetfilter-queue-dev libunwind-dev libmnl-dev ethtool libjemalloc-dev libhyperscan-dev asciidoc
-if [ $PROXY ] ;then
-  export https_proxy=https://$PROXY
-  export http_proxy=http://$PROXY
-  git config --global http.proxy http://$PROXY
-echo "setting proxy to $PROXY"
+#!/bin/bash
+
+# Check Ubuntu release
+rel=$(lsb_release -sr)
+
+if [[ "$rel" == "24.04" ]]; then
+  # Create directory for source files
+  mkdir -p ~/snort_src
+  cd ~/snort_src || { echo "Failed to enter snort_src directory"; exit 1; }
+
+  # Install dependencies
+  echo "Installing necessary packages..."
+  sudo apt update
+  sudo apt install -y build-essential autotools-dev libdumbnet-dev libluajit-5.1-dev \
+  libpcap-dev zlib1g-dev pkg-config libhwloc-dev cmake liblzma-dev openssl \
+  libssl-dev cpputest libsqlite3-dev libtool uuid-dev git autoconf bison flex \
+  libcmocka-dev libnetfilter-queue-dev libunwind-dev libmnl-dev ethtool libjemalloc-dev \
+  libhyperscan-dev asciidoc || { echo "Package installation failed"; exit 1; }
+
+  # Set proxy if specified
+  if [[ -n "$PROXY" ]]; then
+    export https_proxy="https://$PROXY"
+    export http_proxy="http://$PROXY"
+    git config --global http.proxy "http://$PROXY"
+    echo "Proxy set to $PROXY"
+  else
+    echo "No proxy specified. Connecting directly. Set PROXY=server:port if needed."
+  fi
+
+  # Set Snort installation prefix
+  if [[ -z "$SNORT_PREFIX" ]]; then
+    SNORT_PREFIX="/usr/local"
+    echo "No install prefix specified. Defaulting to /usr/local."
+  else
+    echo "Snort will be installed to $SNORT_PREFIX"
+  fi
+
+  # Download and install PCRE
+  cd ~/snort_src || { echo "Failed to enter snort_src directory"; exit 1; }
+  wget https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.gz
+  tar -xzvf pcre-8.45.tar.gz
+  cd pcre-8.45 || { echo "Failed to enter pcre-8.45 directory"; exit 1; }
+  ./configure
+  make -j 4
+  sudo make install || { echo "PCRE installation failed"; exit 1; }
+
+  # Download and install gperftools
+  cd ~/snort_src
+  wget https://github.com/gperftools/gperftools/releases/download/gperftools-2.9.1/gperftools-2.9.1.tar.gz
+  tar -xzvf gperftools-2.9.1.tar.gz
+  cd gperftools-2.9.1 || { echo "Failed to enter gperftools directory"; exit 1; }
+  ./configure
+  make -j 4
+  sudo make install || { echo "gperftools installation failed"; exit 1; }
+
+  # Download and install Ragel
+  wget http://www.colm.net/files/ragel/ragel-6.10.tar.gz
+  tar -xzvf ragel-6.10.tar.gz
+  cd ragel-6.10 || { echo "Failed to enter ragel directory"; exit 1; }
+  ./configure
+  make -j 4
+  sudo make install || { echo "Ragel installation failed"; exit 1; }
+
+  # Download Boost
+  wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
+  tar -xvzf boost_1_77_0.tar.gz
+
+  # Download and install FlatBuffers
+  cd ~/snort_src
+  wget https://github.com/google/flatbuffers/archive/refs/tags/v2.0.0.tar.gz -O flatbuffers-v2.0.0.tar.gz
+  tar -xzvf flatbuffers-v2.0.0.tar.gz
+  mkdir -p flatbuffers-build
+  cd flatbuffers-build || { echo "Failed to enter flatbuffers-build directory"; exit 1; }
+  cmake ../flatbuffers-2.0.0
+  make -j 4
+  sudo make install || { echo "FlatBuffers installation failed"; exit 1; }
+
+  # Download and install libdaq
+  cd ~/snort_src
+  wget https://github.com/snort3/libdaq/archive/refs/heads/master.zip
+  unzip master.zip
+  cd libdaq-master || { echo "Failed to enter libdaq-master directory"; exit 1; }
+  ./bootstrap
+  ./configure
+  make -j 4
+  sudo make install || { echo "libdaq installation failed"; exit 1; }
+
+  # Download and install Snort
+  cd ~/snort_src
+  wget https://github.com/snort3/snort3/archive/refs/tags/3.3.4.0.tar.gz -O snort-latest.tar.gz
+  tar -xvf snort-latest.tar.gz
+  cd snort3-3.3.4.0 || { echo "Failed to enter snort3 directory"; exit 1; }
+  ./configure_cmake.sh --prefix="$SNORT_PREFIX" --enable-tcmalloc
+  cd build
+  make -j 4
+  sudo make install || { echo "Snort installation failed"; exit 1; }
+
+  # Install Snort plugins
+  cd ~/snort_src
+  mkdir -p snort_plugins
+  cd snort_plugins
+  git clone https://github.com/kuceros/snort_mitre || { echo "Failed to clone snort_mitre"; exit 1; }
+  cd snort_mitre
+  ./configure_cmake.sh
+  cd build
+  sudo make install || { echo "Snort MITRE plugin installation failed"; exit 1; }
+
+  # Verify installation
+  snort -V || { echo "Snort verification failed"; exit 1; }
+
 else
-echo "you didn't specify proxy srever, connecting directly, you can set env PROXY=server:port to set a proxy"
-fi
-if [ $SNORT_PREFIX ] ;then
-  echo "installing to $SNORT_PREFIX"
-else
-  echo "no install prefix , installing to /usr/local"
-  SNORT_PREFIX=/usr/local
-fi
-echo "snort will be installed to $SNORT_PREFIX"
-cd ~/snort_src/
-wget wget https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.gz
-tar -xzvf pcre-8.45.tar.gz
-cd pcre-8.45
-./configure
-make -j 4
-sudo make install
-cd ~/snort_src
-wget https://github.com/gperftools/gperftools/releases/download/gperftools-2.9.1/gperftools-2.9.1.tar.gz
-tar xzvf gperftools-2.9.1.tar.gz
-cd gperftools-2.9.1
-./configure
-make -j 4
-sudo make install
-wget http://www.colm.net/files/ragel/ragel-6.10.tar.gz
-tar -xzvf ragel-6.10.tar.gz
-cd ragel-6.10
-./configure
-make -j 4
-sudo make install
-wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
-tar -xvzf boost_1_77_0.tar.gz
-cd ~/snort_src
-wget https://github.com/google/flatbuffers/archive/refs/tags/v2.0.0.tar.gz -O flatbuffers-v2.0.0.tar.gz
-tar -xzvf flatbuffers-v2.0.0.tar.gz
-mkdir flatbuffers-build
-cd flatbuffers-build
-cmake ../flatbuffers-2.0.0
-make -j 4
-sudo make install
-cd ~/snort_src
-wget https://github.com/snort3/libdaq/archive/refs/heads/master.zip
-unzip master.zip
-cd libdaq-master/
-./bootstrap
-./configure
-make -j 4
-sudo make install
-cd ~/snort_src
-wget https://github.com/snort3/snort3/archive/refs/tags/3.3.4.0.tar.gz -O snort-latest.tar.gz
-tar -xvf snort-latest.tar.gz 
-cd snort3-3.3.4.0/
-./configure_cmake.sh --prefix=$SNORT_PREFIX --enable-tcmalloc
-cd build
-make -j 4
-sudo make install
-cd ~/snort_src
-mkdir snort_plugins
-cd snort_plugins
-git clone https://github.com/kuceros/snort_mitre 
-cd snort_mitre
-./configure_cmake.sh
-cd build
-sudo make install
-snort -v 
-else
-echo "you are not on ubuntu 24.04"
+  echo "This script is only for Ubuntu 24.04."
 fi
