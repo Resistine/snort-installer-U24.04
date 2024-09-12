@@ -11,6 +11,12 @@ echo "setting proxy to $PROXY"
 else
 echo "you didn't specify proxy srever, connecting directly, you can set env PROXY=server:port to set a proxy"
 fi
+if [ $SNORT_PREFIX ] ;then
+  echo "no install prefix , installing to /usr/local"
+else
+  SNORT_PREFIX=/usr/local
+fi
+echo "snort will be installed to $SNORT_PREFIX"
 cd ~/snort_src/
 wget wget https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.gz
 tar -xzvf pcre-8.45.tar.gz
@@ -53,7 +59,7 @@ cd ~/snort_src
 wget https://github.com/snort3/snort3/archive/refs/tags/3.3.4.0.tar.gz -O snort-latest.tar.gz
 tar -xvf snort-latest.tar.gz 
 cd snort3-3.3.4.0/
-./configure_cmake.sh --prefix=/usr/local --enable-tcmalloc
+./configure_cmake.sh --prefix=$SNORT_PREFIX --enable-tcmalloc
 cd build
 make -j 4
 sudo make install
