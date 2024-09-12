@@ -12,8 +12,9 @@ else
 echo "you didn't specify proxy srever, connecting directly, you can set env PROXY=server:port to set a proxy"
 fi
 if [ $SNORT_PREFIX ] ;then
-  echo "no install prefix , installing to /usr/local"
+  echo "installing to $SNORT_PREFIX"
 else
+  echo "no install prefix , installing to /usr/local"
   SNORT_PREFIX=/usr/local
 fi
 echo "snort will be installed to $SNORT_PREFIX"
